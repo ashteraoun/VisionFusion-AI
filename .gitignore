@@ -1,0 +1,40 @@
+# Local environment files; keep example templates tracked.
+.env
+.env.*
+!.env.example
+!**/.env.example
+
+# PHP / Laravel dependencies and generated files.
+**/vendor/
+**/node_modules/
+laravel-app/public/build/
+laravel-app/public/hot
+laravel-app/storage/*.key
+laravel-app/storage/pail
+laravel-app/bootstrap/cache/*.php
+*.log
+*.sqlite
+*.sqlite-journal
+
+# Python environments, caches, and test artifacts.
+.venv/
+venv/
+**/.venv/
+**/venv/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Private/generated image data.
+laravel-app/storage/app/private/
+laravel-app/storage/app/public/uploads/
+python-ai/uploads/
+
+# OS and editor files.
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
