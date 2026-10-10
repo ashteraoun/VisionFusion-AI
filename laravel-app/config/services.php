@@ -37,6 +37,9 @@ return [
 
     'ai' => [
         'url' => env('AI_SERVICE_URL', 'http://127.0.0.1:8000'),
+        'analyze_path' => env('AI_SERVICE_ANALYZE_PATH', '/api/v1/analyze-image'),
+        'connect_timeout' => (int) env('AI_SERVICE_CONNECT_TIMEOUT', 5),
+        'timeout' => (int) env('AI_SERVICE_TIMEOUT', 30),
     ],
 
 ];

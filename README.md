@@ -1,19 +1,20 @@
 # VisionFusion AI
 
-VisionFusion AI is a multimodal image-intelligence platform foundation. The project is a monorepo with a Laravel web application and a separate Python FastAPI service. This setup is **Step 1 only**: it provides service health checks and the base structure; image uploads, object detection, OCR, authentication, dashboards, and vision-language features are not implemented yet.
+VisionFusion AI is a multimodal image-intelligence platform foundation with a Laravel web application and a Python FastAPI service. Step 2 adds a responsive image-upload interface and a temporary Laravel-to-FastAPI image validation flow.
+
+**Current scope:** JPG, JPEG, PNG, and WEBP uploads are validated and their metadata is returned. No image is permanently stored. Object detection, OCR, image captioning, authentication, and analysis history are not implemented.
 
 ## Prerequisites
 
 - Windows 10/11 and PowerShell
-- PHP 8.2 or newer in the Laravel 12 supported range, with `pdo_mysql`, `mbstring`, `openssl`, `fileinfo`, `xml`, and `curl` enabled
+- PHP 8.2 or newer supported by Laravel 12, with `curl`, `fileinfo`, `mbstring`, `openssl`, `pdo_mysql`, and `xml` enabled
 - Composer 2
-- Python 3.10 or newer (Python 3.13.1 was used to set up this repository)
-- pip
-- Node.js and npm (for Laravel's frontend assets)
+- Python 3.10 or newer and pip
+- Node.js and npm (Laravel Vite/Tailwind assets)
+- MySQL, such as the service bundled with XAMPP
 - Git
-- MySQL, such as the MySQL service bundled with XAMPP
 
-Check installed versions from the repository root in PowerShell:
+Check installed versions at the repository root:
 
 ```powershell
 php --version
@@ -25,29 +26,25 @@ npm --version
 git --version
 ```
 
-If the Python launcher is installed, `py --version` and `py -m pip --version` are also available.
-
 ## Repository structure
 
 ```text
 VisionFusion-AI/
 ├── docs/                   # Project documentation
-├── laravel-app/            # Laravel 12 web application (PHP ^8.2)
-├── python-ai/              # FastAPI service and local Python virtual environment
-│   ├── .venv/               # Generated locally; ignored by Git
+├── laravel-app/            # Laravel 12 web application
+├── python-ai/              # FastAPI service, Pillow image validation, pytest suite
+│   ├── tests/
 │   ├── main.py
 │   └── requirements.txt
 ├── .gitignore
 └── README.md
 ```
 
-Laravel and FastAPI are independent services. Laravel's `AI_SERVICE_URL` is configured for future API integration; this foundation does not yet make AI-service requests.
+## Installation
 
-## Initial setup
+Run commands from the repository root unless another directory is shown.
 
-Run these commands from a VS Code PowerShell terminal opened at the repository root.
-
-### Python AI service
+### Python service
 
 ```powershell
 Set-Location .\python-ai
@@ -55,76 +52,123 @@ py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
+Copy-Item .env.example .env
 ```
 
-If PowerShell prevents virtual-environment activation, skip activation and use the environment's executable directly:
+If PowerShell blocks activation, use `.\.venv\Scripts\python.exe` instead of `python`. Edit `python-ai\.env` to change `MAX_IMAGE_UPLOAD_MB` (default 10). `.env` is ignored by Git.
 
-```powershell
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-```
+### Laravel application
 
-### Laravel web application
-
-Start and configure MySQL in XAMPP, then create a database named `visionfusion_ai` (for example, with phpMyAdmin). From a separate terminal:
+Start MySQL in XAMPP and create a database named `visionfusion_ai` if you plan to use Laravel's database-backed features later. From a second terminal:
 
 ```powershell
 Set-Location .\laravel-app
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 composer install
 php artisan key:generate
-```
-
-Edit `laravel-app\.env` if your MySQL host, port, database, username, or password differs from the defaults in `.env.example`. Then run the initial migrations and build the frontend assets:
-
-```powershell
-php artisan migrate
 npm install
 npm run build
 ```
 
-The repository includes the Laravel Composer scaffold; `composer install` restores its dependencies after cloning. The local `.env` file should not be committed.
+Configure `laravel-app\.env` for your local environment. The image-upload page and AI request do not require a database connection.
 
-## Run both services
+## Configuration
 
-Open two separate VS Code PowerShell terminals at the repository root.
+Laravel reads these settings from `laravel-app\.env`:
 
-**Terminal 1 — FastAPI** (activate the venv first if it is not already active):
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `AI_SERVICE_URL` | `http://127.0.0.1:8000` | Base URL for the FastAPI service |
+| `AI_SERVICE_ANALYZE_PATH` | `/api/v1/analyze-image` | Image-analysis API path |
+| `AI_SERVICE_CONNECT_TIMEOUT` | `5` | Connection timeout in seconds |
+| `AI_SERVICE_TIMEOUT` | `30` | Total request timeout in seconds |
+| `MAX_IMAGE_UPLOAD_MB` | `10` | Laravel upload limit |
+
+FastAPI reads `MAX_IMAGE_UPLOAD_MB` from its process environment. If the `.env` file has been created, the commands below load it with Uvicorn's `--env-file .env` option. Keep the Laravel and Python upload limits aligned.
+
+## Run both applications
+
+Open two PowerShell terminals in VS Code, both starting at the repository root.
+
+**Terminal 1 - FastAPI:**
 
 ```powershell
 Set-Location .\python-ai
 .\.venv\Scripts\Activate.ps1
-python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
+python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000 --env-file .env
 ```
 
-Without activation:
-
-```powershell
-Set-Location .\python-ai
-.\.venv\Scripts\python.exe -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
-```
-
-**Terminal 2 — Laravel:**
+**Terminal 2 - Laravel:**
 
 ```powershell
 Set-Location .\laravel-app
 php artisan serve --host=127.0.0.1 --port=8001
 ```
 
-Verify the JSON health checks from another PowerShell terminal:
+Open the upload page at `http://127.0.0.1:8001/`. FastAPI's interactive API documentation is at `http://127.0.0.1:8000/docs`.
+
+## API and health checks
+
+- FastAPI health: `GET http://127.0.0.1:8000/health`
+- Laravel health: `GET http://127.0.0.1:8001/health`
+- Image validation: `POST http://127.0.0.1:8000/api/v1/analyze-image`
+- Laravel browser upload: `POST http://127.0.0.1:8001/analyze-image`
+
+The FastAPI endpoint accepts multipart/form-data with the field name `file`. It inspects decoded image content using Pillow, enforces the configured byte limit and a 40-megapixel dimension cap, then returns metadata without saving the image. Successful responses contain:
+
+```json
+{
+  "success": true,
+  "filename": "sample.png",
+  "format": "PNG",
+  "width": 640,
+  "height": 480,
+  "file_size_bytes": 18342,
+  "message": "Image validated successfully. Image analysis is not enabled yet."
+}
+```
+
+Invalid or unsupported images return HTTP 4xx responses; unexpected processing errors return a generic HTTP 500 response. Laravel validates the upload independently, forwards it as multipart data, and displays the returned metadata.
+
+## Tests
+
+From the repository root:
+
+```powershell
+Push-Location .\python-ai
+.\.venv\Scripts\python.exe -m pytest
+Pop-Location
+
+Push-Location .\laravel-app
+php artisan test
+Pop-Location
+```
+
+Both suites generate or embed tiny test images; no user images are needed.
+
+## Manual checks
+
+Check both health endpoints:
 
 ```powershell
 Invoke-RestMethod http://127.0.0.1:8000/health
 Invoke-RestMethod http://127.0.0.1:8001/health
 ```
 
-Both endpoints return `{"status":"ok"}`. The FastAPI interactive API documentation is available at `http://127.0.0.1:8000/docs`.
+Test FastAPI directly with any local supported image:
 
-## Health endpoints and configuration
+```powershell
+$form = @{ file = Get-Item .\sample.png }
+Invoke-RestMethod -Uri http://127.0.0.1:8000/api/v1/analyze-image -Method Post -Form $form
+```
 
-- FastAPI: `GET http://127.0.0.1:8000/health`
-- Laravel: `GET http://127.0.0.1:8001/health`
-- Laravel's `config/services.php` reads `AI_SERVICE_URL`, which defaults to `http://127.0.0.1:8000`. Set it in `laravel-app\.env` to point Laravel at the FastAPI service.
+To test the complete Laravel-to-Python flow, choose a JPG, PNG, or WEBP image from the browser upload page. The preview shows the selected name and size; after a successful response, the page displays its format, dimensions, and file size. Try an unsupported file, a corrupted image, or a file over the limit to see the error handling. To check service downtime, stop Uvicorn, submit a valid image, and confirm Laravel shows a temporary-unavailable message.
 
-## Scope
+## Troubleshooting
 
-This repository currently contains only the project foundation and health checks. Computer vision, YOLO, EasyOCR, image-question answering, image storage/history, and user-facing application features are intentionally reserved for later steps.
+- **Laravel upload reports a server error before validation:** PHP's `upload_max_filesize` and `post_max_size` must allow the multipart request. In XAMPP's `php.ini`, use values such as `upload_max_filesize=12M` and `post_max_size=12M` for a 10 MB application limit, then restart Apache or the PHP process.
+- **FastAPI upload returns 422 or multipart parsing errors:** activate the `python-ai\.venv` environment and install `python-multipart` with `python -m pip install -r requirements.txt`.
+- **Image validation dependencies are missing:** install Pillow with the same requirements command; Pillow verifies and decodes image data.
+- **Laravel says the AI service is unavailable:** make sure Uvicorn is running, and check `AI_SERVICE_URL`, `AI_SERVICE_ANALYZE_PATH`, and the configured port in `laravel-app\.env`. Clear stale Laravel configuration with `php artisan config:clear`.
+- **The upload page has no styling or JavaScript:** run `npm install` and `npm run build` in `laravel-app`.
+- **Virtual environment activation is blocked:** run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` in that terminal, or invoke `.\.venv\Scripts\python.exe` directly.
