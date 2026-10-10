@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Services\AiImageAnalysisService;
 use App\Services\AiServiceException;
+use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\Rules\File;
 use Illuminate\View\View;
 
@@ -27,6 +29,18 @@ class ImageAnalysisController extends Controller
                 'required',
                 File::image()->types(config('image_upload.allowed_extensions'))->max($maxSizeKb),
                 'extensions:'.$extensions,
+                static function (string $attribute, mixed $value, Closure $fail): void {
+                    if (! $value instanceof UploadedFile) {
+                        return;
+                    }
+
+                    $image = @getimagesize($value->getRealPath());
+                    $allowedTypes = [IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_WEBP];
+
+                    if ($image === false || ! in_array($image[2], $allowedTypes, true)) {
+                        $fail('The selected file must contain a valid JPG, PNG, or WEBP image.');
+                    }
+                },
             ],
         ], [
             'image.required' => 'Choose an image to analyze.',

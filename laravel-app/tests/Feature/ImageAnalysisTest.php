@@ -58,7 +58,7 @@ class ImageAnalysisTest extends TestCase
             ->assertOk()
             ->assertSee('Image details')
             ->assertSee('sample.png')
-            ->assertSee('3 × 2 px');
+            ->assertSee('2 × 3 px');
     }
 
     public function test_rejects_unsupported_files_before_calling_the_ai_service(): void

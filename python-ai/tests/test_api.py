@@ -53,9 +53,12 @@ def test_analyzes_valid_png() -> None:
 
 
 def test_rejects_unsupported_content() -> None:
+    unsupported_image = BytesIO()
+    Image.new("RGB", (3, 2), (42, 96, 168)).save(unsupported_image, format="GIF")
+
     response = client.post(
         "/api/v1/analyze-image",
-        files={"file": ("document.pdf", b"%PDF-1.7 unsupported", "application/pdf")},
+        files={"file": ("animation.gif", unsupported_image.getvalue(), "image/gif")},
     )
 
     assert response.status_code == 415
